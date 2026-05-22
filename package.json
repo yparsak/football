@@ -1,0 +1,22 @@
+{
+  "name": "soccer-game",
+  "version": "1.0.0",
+  "description": "A simple 2D soccer game using Canvas and Node.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "soccer",
+    "game",
+    "canvas",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
