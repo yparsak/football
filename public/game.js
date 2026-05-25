@@ -14,12 +14,25 @@ const INITIAL_BALL_SPEED = 2;
 let leftScore = 0;
 let rightScore = 0;
 let ballSpeedMultiplier = 1.0;
-let lastSpeedIncrease = Date.now();
+let gameState = 'START';
 
 const keys = {};
 
 window.addEventListener('keydown', (e) => {
-    keys[e.key.toLowerCase()] = true;
+    const key = e.key.toLowerCase();
+    keys[key] = true;
+
+    if (key === 'enter') {
+        if (gameState === 'START' || gameState === 'PAUSED') {
+            gameState = 'PLAYING';
+        }
+    } else if (key === 'escape') {
+        if (gameState === 'PLAYING') {
+            gameState = 'PAUSED';
+        } else if (gameState === 'PAUSED') {
+            gameState = 'PLAYING';
+        }
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -38,7 +51,29 @@ class Player {
 
     draw() {
         ctx.fillStyle = 'white';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // Draw curved paddle
+        ctx.beginPath();
+        const radius = 5; // Radius for curved corners
+
+        // Top edge with slight curve
+        ctx.moveTo(this.x + radius, this.y);
+        ctx.quadraticCurveTo(this.x + this.width / 2, this.y - 5, this.x + this.width - radius, this.y);
+
+        // Right edge
+        ctx.lineTo(this.x + this.width, this.y + radius);
+        ctx.lineTo(this.x + this.width, this.y + this.height - radius);
+
+        // Bottom edge with slight curve
+        ctx.lineTo(this.x + this.width - radius, this.y + this.height);
+        ctx.quadraticCurveTo(this.x + this.width / 2, this.y + this.height + 5, this.x + radius, this.y + this.height);
+
+        // Left edge
+        ctx.lineTo(this.x, this.y + this.height - radius);
+        ctx.lineTo(this.x, this.y + radius);
+
+        ctx.closePath();
+        ctx.fill();
     }
 
     update() {
@@ -114,14 +149,46 @@ class Ball {
             this.x + BALL_SIZE / 2 > player1.x &&
             this.y > player1.y &&
             this.y < player1.y + player1.height) {
+
+            ballSpeedMultiplier *= 1.002;
             this.vx = Math.abs(this.vx);
+
+            const relativeHit = (this.y - (player1.y + player1.height / 2)) / (player1.height / 2);
+            const angleShift = relativeHit * (20 * Math.PI / 180);
+
+            const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+            const currentAngle = Math.atan2(this.vy, this.vx);
+            const newAngle = currentAngle + angleShift;
+
+            this.vx = speed * Math.cos(newAngle);
+            this.vy = speed * Math.sin(newAngle);
+
+            // Ensure vx stays positive to prevent getting stuck
+            if (this.vx < 0.5) this.vx = 0.5;
+            this.x = player1.x + player1.width + BALL_SIZE / 2;
         }
 
         if (this.x + BALL_SIZE / 2 > player2.x &&
             this.x - BALL_SIZE / 2 < player2.x + player2.width &&
             this.y > player2.y &&
             this.y < player2.y + player2.height) {
+
+            ballSpeedMultiplier *= 1.002;
             this.vx = -Math.abs(this.vx);
+
+            const relativeHit = (this.y - (player2.y + player2.height / 2)) / (player2.height / 2);
+            const angleShift = relativeHit * (20 * Math.PI / 180);
+
+            const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+            const currentAngle = Math.atan2(this.vy, this.vx);
+            const newAngle = currentAngle - angleShift;
+
+            this.vx = speed * Math.cos(newAngle);
+            this.vy = speed * Math.sin(newAngle);
+
+            // Ensure vx stays negative to prevent getting stuck
+            if (this.vx > -0.5) this.vx = -0.5;
+            this.x = player2.x - BALL_SIZE / 2;
         }
     }
 }
@@ -163,17 +230,11 @@ function gameLoop() {
 
     drawPitch();
 
-    // Update
-    player1.update();
-    player2.update();
-    ball.update();
-
-    // Increase speed every 20 seconds
-    const now = Date.now();
-    if (now - lastSpeedIncrease > 20000) {
-        ballSpeedMultiplier *= 1.1;
-        lastSpeedIncrease = now;
-        console.log('Speed increased! New multiplier:', ballSpeedMultiplier);
+    if (gameState === 'PLAYING') {
+        // Update
+        player1.update();
+        player2.update();
+        ball.update();
     }
 
     // Draw
@@ -181,6 +242,24 @@ function gameLoop() {
     player2.draw();
     ball.draw();
     drawScore();
+
+    if (gameState === 'START') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        ctx.font = '48px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Press Enter to Start', canvas.width / 2, canvas.height / 2);
+    } else if (gameState === 'PAUSED') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        ctx.font = '48px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Paused', canvas.width / 2, canvas.height / 2);
+        ctx.font = '24px Arial';
+        ctx.fillText('Press Enter or ESC to Resume', canvas.width / 2, canvas.height / 2 + 50);
+    }
 
     requestAnimationFrame(gameLoop);
 }
